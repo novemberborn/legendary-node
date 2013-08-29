@@ -5,7 +5,11 @@ var Mocha = require('mocha');
 require('mocha-as-promised')(Mocha);
 
 var chai = require('chai');
-chai.use(require('chai-as-promised'));
+chai.use((function() {
+  var plugin = require('chai-as-promised');
+  plugin.dontCheckPipe = true;
+  return plugin;
+})());
 require('sinon').assert.expose(chai.assert, { prefix: '' });
 
 var mocha = new Mocha({

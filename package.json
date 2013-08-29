@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "chai": "~1.7.2",
-    "chai-as-promised": "~3.3.1",
+    "chai-as-promised": "git://github.com/novemberborn/chai-as-promised.git#dont-check-pipe",
     "glob": "~3.2.6",
     "grunt": "~0.4.1",
     "grunt-contrib-jshint": "~0.6.2",
