@@ -24,6 +24,8 @@ describe('EndOfStreamError', function() {
   });
 
   it('can be given a message', function() {
-    assert.strictEqual(new EndOfStreamError(sentinels.one).message, sentinels.one);
+    assert.strictEqual(
+        new EndOfStreamError(sentinels.one).message,
+        sentinels.one);
   });
 });
