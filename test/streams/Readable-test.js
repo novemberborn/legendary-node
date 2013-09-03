@@ -17,6 +17,7 @@ var blessed = require('legendary/lib/blessed');
 
 var PassThrough = require('stream').PassThrough;
 var StreamArray = require('stream-array');
+var randomBytes = require('crypto').randomBytes;
 
 function identity(x) {
   return x;
@@ -1195,4 +1196,59 @@ describe('streams.Readable#toCollection()', function() {
         var c = r.toCollection(SubCollection);
         assert.instanceOf(c, SubCollection);
       });
+});
+
+describe('streams.Readable#toBuffer()', function() {
+  it('returns a Promise', function() {
+    assert.instanceOf(
+        Readable.from(new PassThrough()).toBuffer(),
+        Promise);
+  });
+
+  it('combines each chunk into a buffer', function() {
+    var chunks = [randomBytes(2), randomBytes(2), randomBytes(2)];
+    var r = Readable.from(new StreamArray(chunks.slice()));
+    return r.toBuffer().then(function(buffer) {
+      assert.lengthOf(buffer, 6);
+      assert.equal(buffer[0], chunks[0][0]);
+      assert.equal(buffer[1], chunks[0][1]);
+      assert.equal(buffer[2], chunks[1][0]);
+      assert.equal(buffer[3], chunks[1][1]);
+      assert.equal(buffer[4], chunks[2][0]);
+      assert.equal(buffer[5], chunks[2][1]);
+    });
+  });
+
+  describe('accepts a length argument', function() {
+    it('combines each chunk into a buffer', function() {
+      var chunks = [randomBytes(2), randomBytes(2), randomBytes(2)];
+      var r = Readable.from(new StreamArray(chunks.slice()));
+      return r.toBuffer(6).then(function(buffer) {
+        assert.lengthOf(buffer, 6);
+        assert.equal(buffer[0], chunks[0][0]);
+        assert.equal(buffer[1], chunks[0][1]);
+        assert.equal(buffer[2], chunks[1][0]);
+        assert.equal(buffer[3], chunks[1][1]);
+        assert.equal(buffer[4], chunks[2][0]);
+        assert.equal(buffer[5], chunks[2][1]);
+      });
+    });
+
+    it('fails if there are more chunks than the length allows', function() {
+      var chunks = [randomBytes(2), randomBytes(2), randomBytes(2)];
+      var r = Readable.from(new StreamArray(chunks.slice()));
+      return assert.isRejected(r.toBuffer(4), RangeError);
+    });
+
+    it('leaves unknown bytes if there are fewer than the length expects',
+        function() {
+          var chunks = [randomBytes(2), randomBytes(1)];
+          var r = Readable.from(new StreamArray(chunks.slice()));
+          return r.toBuffer(4).then(function(buffer) {
+            assert.lengthOf(buffer, 4);
+            assert.equal(buffer[0], chunks[0][0]);
+            assert.equal(buffer[1], chunks[0][1]);
+          });
+        });
+  });
 });
