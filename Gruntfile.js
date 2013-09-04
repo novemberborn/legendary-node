@@ -14,7 +14,8 @@ module.exports = function(grunt) {
         options: {
           globals: {
             describe: true,
-            it: true
+            it: true,
+            beforeEach: true
           }
         },
 
