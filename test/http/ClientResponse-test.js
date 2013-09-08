@@ -3,52 +3,52 @@
 var assert = require('chai').assert;
 var sentinels = require('legendary/test/sentinels');
 
-var Response = require('../../').http.Response;
+var ClientResponse = require('../../').http.ClientResponse;
 var Readable = require('../../').streams.Readable;
 var Promise = require('../../').Promise;
 
 var testConstructor = require('legendary/test/util').testConstructor;
 var PassThrough = require('stream').PassThrough;
 
-describe('http.Response', function() {
-  testConstructor(Response);
+describe('http.ClientResponse', function() {
+  testConstructor(ClientResponse);
 });
 
-describe('http.Response#statusCode', function() {
+describe('http.ClientResponse#statusCode', function() {
   it('gets a Promise for the `statusCode` property of the response value',
       function() {
-        var p = Response.from({ statusCode: sentinels.one }).statusCode;
+        var p = ClientResponse.from({ statusCode: sentinels.one }).statusCode;
         assert.instanceOf(p, Promise);
-        assert.notInstanceOf(p, Response);
+        assert.notInstanceOf(p, ClientResponse);
         return assert.eventually.strictEqual(p, sentinels.one);
       });
 });
 
-describe('http.Response#headers', function() {
+describe('http.ClientResponse#headers', function() {
   it('gets a Promise for the `headers` property of the response value',
       function() {
-        var p = Response.from({ headers: sentinels.one }).headers;
+        var p = ClientResponse.from({ headers: sentinels.one }).headers;
         assert.instanceOf(p, Promise);
-        assert.notInstanceOf(p, Response);
+        assert.notInstanceOf(p, ClientResponse);
         return assert.eventually.strictEqual(p, sentinels.one);
       });
 });
 
-describe('http.Response#stream', function() {
+describe('http.ClientResponse#stream', function() {
   it('gets a Readable for the response value', function() {
-    var s = Response.from(new PassThrough()).stream;
+    var s = ClientResponse.from(new PassThrough()).stream;
     assert.instanceOf(s, Readable);
-    assert.notInstanceOf(s, Response);
+    assert.notInstanceOf(s, ClientResponse);
   });
 
   it('gets the same Readable when accessed multiple times', function() {
-    var r = Response.from(new PassThrough());
+    var r = ClientResponse.from(new PassThrough());
     assert.strictEqual(r.stream, r.stream);
   });
 
   it('actually streams', function() {
     var pt = new PassThrough({ objectMode: true });
-    var s = Response.from(pt).stream;
+    var s = ClientResponse.from(pt).stream;
     pt.write(sentinels.one);
     pt.write(sentinels.two);
     pt.end(sentinels.three);
