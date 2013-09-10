@@ -57,3 +57,19 @@ describe('http.ClientResponse#stream', function() {
         sentinels.arr());
   });
 });
+
+describe('http.ClientResponse#forApp()', function() {
+  it('returns a Promise for an http.app-compatible value object', function() {
+    var r = new PassThrough();
+    r.statusCode = sentinels.one;
+    r.headers = sentinels.two;
+    var p = ClientResponse.from(r).forApp();
+    assert.instanceOf(p, Promise);
+    assert.notInstanceOf(p, ClientResponse);
+    return p.then(function(response) {
+      assert.strictEqual(response.statusCode, sentinels.one);
+      assert.strictEqual(response.headers, sentinels.two);
+      assert.instanceOf(response.stream, Readable);
+    });
+  });
+});
