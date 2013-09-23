@@ -249,6 +249,13 @@ describe('streams.Readable#unshift()', function() {
 });
 
 describe('streams.Readable#pipe()', function() {
+  it('throws if the stream isn’t readable', function() {
+    var r = Readable.rejected();
+    return assert.throws(function() {
+      r.pipe(new PassThrough());
+    }, Error, 'Stream is not readable.');
+  });
+
   it('works as expected', function() {
     var pt = new PassThrough({ objectMode: true });
     var out = Readable.from(pt).pipe(new PassThrough({ objectMode: true }));
