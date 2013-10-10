@@ -1,6 +1,6 @@
 {
   "name": "legendary-node",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Standard Node libraries reinterpreted with Legendary promises.",
   "homepage": "https://github.com/novemberborn/legendary-node",
   "bugs": {
