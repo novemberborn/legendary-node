@@ -412,7 +412,7 @@ describe('streams.Readable#eachLimited()', function() {
         }
       });
 
-      return Promise.from().then(function() {
+      return delay().then(function() {
         // Given concurrency of 2, previous and the *next*
         // iterator should have been called.
         allSpies.forEach(function(spy, spyIndex) {
@@ -592,8 +592,12 @@ describe('streams.Readable#_produceLimited()', function() {
 
     assert.notCalled(spy);
     return r2.read().then(function() {
+      return delay();
+    }).then(function() {
       assert.calledTwice(spy);
       return r2.read();
+    }).then(function() {
+      return delay();
     }).then(function() {
       assert.calledThrice(spy);
     });

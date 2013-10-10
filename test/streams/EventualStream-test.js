@@ -17,7 +17,7 @@ describe('streams.EventualStream', function() {
     var spy = sinon.spy();
     stream.on('error', spy);
 
-    return Promise.from().then(function() {
+    return delay().then(function() {
       assert.calledOnce(spy);
       assert.calledWithExactly(spy, sentinels.one);
     });
@@ -29,7 +29,7 @@ describe('streams.EventualStream', function() {
     var spy = sinon.spy();
     stream.on('error', spy);
 
-    return Promise.from().then(function() {
+    return delay().then(function() {
       assert.calledOnce(spy);
       assert.calledWithMatch(spy, sinon.match.instanceOf(TypeError));
     });
@@ -91,7 +91,7 @@ describe('streams.EventualStream', function() {
     var endSpy = sinon.spy();
     stream.on('end', endSpy);
 
-    return Promise.from().then(function() {
+    return delay().then(function() {
       assert.isNull(stream.read());
 
       pt.write(sentinels.one);
