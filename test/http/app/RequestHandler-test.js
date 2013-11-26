@@ -562,7 +562,7 @@ describe('http.app.RequestHandler#_handleError(error, state)', function() {
 
   it('emits `error` for other errors', function() {
     var spy = sinon.spy();
-    rh.on('error', spy);
+    rh.on('internalError', spy);
     return Promise.rejected(sentinels.one).otherwise(function(reason) {
       rh._handleError(reason, state);
       assert.calledOnce(spy);
