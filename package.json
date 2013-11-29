@@ -15,7 +15,7 @@
     "url": "https://github.com/novemberborn/legendary-node.git"
   },
   "peerDependencies": {
-    "legendary": ">=0.12.1"
+    "legendary": "0.12.1"
   },
   "devDependencies": {
     "chai": "~1.7.2",
