@@ -265,6 +265,16 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
           }, TypeError, 'Unexpected `chunk` value when `stream` is present.');
         });
 
+        it('throws if `response.html` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              stream: { pipe: function() {} },
+              html: ''
+            }, true);
+          }, TypeError, 'Unexpected `html` value when `stream` is present.');
+        });
+
         it('throws if `response.json` is also passed', function() {
           assert.throws(function() {
             rh._assertResponse({
@@ -312,6 +322,16 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
           }, TypeError, 'Expected `chunk` to be a buffer.');
         });
 
+        it('throws if `response.html` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              chunk: new Buffer(''),
+              html: ''
+            }, true);
+          }, TypeError, 'Unexpected `html` value when `chunk` is present.');
+        });
+
         it('throws if `response.json` is also passed', function() {
           assert.throws(function() {
             rh._assertResponse({
@@ -330,6 +350,53 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
               form: true
             }, true);
           }, TypeError, 'Unexpected `form` value when `chunk` is present.');
+        });
+      });
+
+      describe('`response.html`', function() {
+        it('throws if the value exists but is not a string or array',
+          function() {
+            assert.throws(function() {
+              rh._assertResponse({ statusCode: 200, html: undefined }, true);
+            }, TypeError, 'Expected `html` to be a string or array.');
+
+            assert.doesNotThrow(function() {
+              rh._assertResponse({ statusCode: 200, html: '' }, true);
+            });
+
+            assert.doesNotThrow(function() {
+              rh._assertResponse({ statusCode: 200, html: [] }, true);
+            });
+          });
+
+        it('throws if `response.json` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              html: '',
+              json: true
+            }, true);
+          }, TypeError, 'Unexpected `json` value when `html` is present.');
+        });
+
+        it('throws if `response.form` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              html: '',
+              form: true
+            }, true);
+          }, TypeError, 'Unexpected `form` value when `html` is present.');
+        });
+
+        it('throws if only `response.chunk` is allowed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              html: ''
+            }, true, true);
+          }, TypeError,
+              'Response contains `html` but only `chunk` is allowed.');
         });
       });
 
@@ -765,6 +832,7 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
       _events: {},
       setHeader: function() {},
       writeHead: function() {},
+      write: function() {},
       end: function() {},
       on: function() {},
       once: function() {},
@@ -791,6 +859,19 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
     return timed.delay().then(function() {
       assert.calledOnce(stub);
       assert.calledWithExactly(stub, sentinels.one, false, false);
+    });
+  });
+
+  it('sets a default content-type header for HTML response bodies', function() {
+    var mock = sinon.mock(state.underlyingRes);
+    mock.expects('setHeader').once().withExactArgs('content-type',
+        rh.DEFAULT_HTML_CONTENT_TYPE);
+    rh._writeResponse(Promise.from({
+      statusCode: 200,
+      html: ''
+    }), state);
+    return timed.delay().then(function() {
+      mock.verify();
     });
   });
 
@@ -836,11 +917,14 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
     function() {
       var spy = sinon.spy();
       rh.on('responseBodyIgnored', spy);
-      var response = { statusCode: 204, chunk: new Buffer('foo') };
-      rh._writeResponse(Promise.from(response), state);
+      var responseWithChunk = { statusCode: 204, chunk: new Buffer('foo') };
+      rh._writeResponse(Promise.from(responseWithChunk), state);
+      var responseWithHtml = { statusCode: 204, html: 'foo' };
+      rh._writeResponse(Promise.from(responseWithHtml), state);
       return timed.delay().then(function() {
-        assert.calledOnce(spy);
-        assert.calledWithExactly(spy, response, state);
+        assert.calledTwice(spy);
+        assert.calledWithExactly(spy, responseWithChunk, state);
+        assert.calledWithExactly(spy, responseWithHtml, state);
       });
     });
 
@@ -876,6 +960,40 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
           assert.isTrue(state.streaming);
         });
       });
+
+  it('ends with a buffer for a single HTML string', function() {
+    var spy = sinon.spy(state.underlyingRes, 'end');
+    rh._writeResponse(Promise.from({
+      statusCode: 200,
+      html: 'foo'
+    }), state);
+    return timed.delay().then(function() {
+      assert.calledOnce(spy);
+      assert.calledWithMatch(spy, sinon.match(function(value) {
+        return Buffer.isBuffer(value) &&
+            value.toString('utf8') === 'foo';
+      }));
+    });
+  });
+
+  it('writes HTML array, then ends', function() {
+    var writeSpy = sinon.spy(state.underlyingRes, 'write');
+    var endSpy = sinon.spy(state.underlyingRes, 'end');
+    rh._writeResponse(Promise.from({
+      statusCode: 200,
+      html: ['foo', new Buffer('bar')]
+    }), state);
+    return timed.delay().then(function() {
+      assert.calledTwice(writeSpy);
+      assert.calledOnce(endSpy);
+      assert.callOrder(writeSpy, endSpy);
+      assert.calledWithExactly(writeSpy, 'foo', 'utf8');
+      assert.calledWithMatch(writeSpy, sinon.match(function(value) {
+        return Buffer.isBuffer(value) &&
+            value.toString('utf8') === 'bar';
+      }));
+    });
+  });
 
   it('ends with a chunk body', function() {
     var spy = sinon.spy(state.underlyingRes, 'end');
