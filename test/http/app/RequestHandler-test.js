@@ -319,15 +319,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
             }, true);
           }, TypeError, 'Unexpected `form` value when `chunk` is present.');
         });
-
-        it('throws if a response body is disallowed', function() {
-          assert.throws(function() {
-            rh._assertResponse({
-              statusCode: 200,
-              chunk: new Buffer('')
-            }, false);
-          }, TypeError, 'Response contains `chunk` but no body is allowed.');
-        });
       });
 
       describe('`response.json`', function() {
@@ -345,15 +336,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
               form: true
             }, true);
           }, TypeError, 'Unexpected `form` value when `json` is present.');
-        });
-
-        it('throws if a response body is disallowed', function() {
-          assert.throws(function() {
-            rh._assertResponse({
-              statusCode: 200,
-              json: true
-            }, false);
-          }, TypeError, 'Response contains `json` but no body is allowed.');
         });
 
         it('throws if only `response.chunk` is allowed', function() {
@@ -378,15 +360,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
           assert.throws(function() {
             rh._assertResponse({ statusCode: 200, form: '42' }, true);
           }, TypeError, 'Expected `form` to be an object.');
-        });
-
-        it('throws if a response body is disallowed', function() {
-          assert.throws(function() {
-            rh._assertResponse({
-              statusCode: 200,
-              form: {}
-            }, false);
-          }, TypeError, 'Response contains `form` but no body is allowed.');
         });
 
         it('throws if only `response.chunk` is allowed', function() {
@@ -916,6 +889,18 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
         return Buffer.isBuffer(value) &&
             value.toString('utf8') === 'foo=b%C3%A5r';
       }));
+    });
+  });
+
+  it('simply ends if no response body is allowed', function() {
+    var spy = sinon.spy(state.underlyingRes, 'end');
+    rh._writeResponse(Promise.from({
+      statusCode: 204,
+      chunk: new Buffer('foo')
+    }), state);
+    return timed.delay().then(function() {
+      assert.calledOnce(spy);
+      assert.calledWithExactly(spy);
     });
   });
 
