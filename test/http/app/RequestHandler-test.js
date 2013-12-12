@@ -819,6 +819,19 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
     });
   });
 
+  it('emits `responseBodyIgnored` if there is a response body that is not ' +
+    'allowed',
+    function() {
+      var spy = sinon.spy();
+      rh.on('responseBodyIgnored', spy);
+      var response = { statusCode: 204, chunk: new Buffer('foo') };
+      rh._writeResponse(Promise.from(response), state);
+      return timed.delay().then(function() {
+        assert.calledOnce(spy);
+        assert.calledWithExactly(spy, response, state);
+      });
+    });
+
   it('writes head with appropriate status code and headers', function() {
     var mock = sinon.mock(state.underlyingRes);
     var response = { statusCode: 200, headers: {} };
