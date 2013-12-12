@@ -173,6 +173,18 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
         rh = new RequestHandler(next);
       });
 
+      it('throws if `response` is falsy', function() {
+        assert.throws(function() {
+          rh._assertResponse(null);
+        }, TypeError, 'Expected response to be an object.');
+      });
+
+      it('throws if `response` is truthy, but not an object', function() {
+        assert.throws(function() {
+          rh._assertResponse(42);
+        }, TypeError, 'Expected response to be an object.');
+      });
+
       it('throws if `response.statusCode` is not a number', function() {
         assert.throws(function() {
           rh._assertResponse({ statusCode: null });
