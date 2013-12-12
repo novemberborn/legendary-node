@@ -130,6 +130,41 @@ describe('http.app.RequestHandler#cancelAll()', function() {
   });
 });
 
+describe('http.app.RequestHandler#_allowBody(request, response)',
+  function() {
+    var rh;
+    beforeEach(function() {
+      rh = new RequestHandler(next);
+    });
+
+    it('normally allows body', function() {
+      assert.isTrue(rh._allowBody(
+        { method: 'GET' },
+        { statusCode: 200 }
+      ));
+    });
+
+    it('does not allow body if request method is `HEAD`', function() {
+      assert.isFalse(rh._allowBody(
+        { method: 'HEAD' },
+        { statusCode: 200 }
+      ));
+    });
+
+    describe('`statusCode` influences whether a response body is allowed',
+      function() {
+        [100, 150, 199, 204, 304].forEach(function(code) {
+          it('is not allowed when `statusCode` is `' + code + '`',
+            function() {
+              assert.isFalse(rh._allowBody(
+                { method: 'GET' },
+                { statusCode: code }
+              ));
+            });
+        });
+      });
+  });
+
 describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
     'chunkOnly)',
     function() {
@@ -364,22 +399,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
               'Response contains `form` but only `chunk` is allowed.');
         });
       });
-
-      describe('`statusCode` influences whether a response body is allowed',
-          function() {
-            [100, 150, 199, 204, 304].forEach(function(code) {
-              it('is not allowed when `statusCode` is `' + code + '`',
-                  function() {
-                    assert.throws(function() {
-                      rh._assertResponse({
-                        statusCode: code,
-                        chunk: new Buffer('')
-                      }, true);
-                    }, TypeError,
-                        'Response contains `chunk` but no body is allowed.');
-                  });
-            });
-          });
     });
 
 describe('http.app.RequestHandler._handle(req, res)', function() {
@@ -772,25 +791,23 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
     };
   });
 
+  it('calls #_allowBody() with request and `promise` value', function() {
+    var stub = sinon.stub(rh, '_allowBody');
+    rh._writeResponse(Promise.from(sentinels.one), state);
+    return timed.delay().then(function() {
+      assert.calledOnce(stub);
+      assert.calledWithExactly(stub, state.request, sentinels.one);
+    });
+  });
+
   it('calls #_assertResponse() with `promise` value', function() {
     var stub = sinon.stub(rh, '_assertResponse');
     rh._writeResponse(Promise.from(sentinels.one), state);
     return timed.delay().then(function() {
       assert.calledOnce(stub);
-      assert.calledWithExactly(stub, sentinels.one, true, false);
+      assert.calledWithExactly(stub, sentinels.one, false, false);
     });
   });
-
-  it('calls #_assertResponse() with a falsy `allowBody` for HEAD requests',
-      function() {
-        var stub = sinon.stub(rh, '_assertResponse');
-        state.request.method = 'HEAD';
-        rh._writeResponse(Promise.from(sentinels.one), state);
-        return timed.delay().then(function() {
-          assert.calledOnce(stub);
-          assert.calledWithExactly(stub, sentinels.one, false, false);
-        });
-      });
 
   it('sets a default content-type header for JSON response bodies', function() {
     var mock = sinon.mock(state.underlyingRes);
