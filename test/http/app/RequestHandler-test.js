@@ -130,12 +130,59 @@ describe('http.app.RequestHandler#cancelAll()', function() {
   });
 });
 
+describe('http.app.RequestHandler#_allowBody(request, response)',
+  function() {
+    var rh;
+    beforeEach(function() {
+      rh = new RequestHandler(next);
+    });
+
+    it('normally allows body', function() {
+      assert.isTrue(rh._allowBody(
+        { method: 'GET' },
+        { statusCode: 200 }
+      ));
+    });
+
+    it('does not allow body if request method is `HEAD`', function() {
+      assert.isFalse(rh._allowBody(
+        { method: 'HEAD' },
+        { statusCode: 200 }
+      ));
+    });
+
+    describe('`statusCode` influences whether a response body is allowed',
+      function() {
+        [100, 150, 199, 204, 304].forEach(function(code) {
+          it('is not allowed when `statusCode` is `' + code + '`',
+            function() {
+              assert.isFalse(rh._allowBody(
+                { method: 'GET' },
+                { statusCode: code }
+              ));
+            });
+        });
+      });
+  });
+
 describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
     'chunkOnly)',
     function() {
       var rh;
       beforeEach(function() {
         rh = new RequestHandler(next);
+      });
+
+      it('throws if `response` is falsy', function() {
+        assert.throws(function() {
+          rh._assertResponse(null);
+        }, TypeError, 'Expected response to be an object.');
+      });
+
+      it('throws if `response` is truthy, but not an object', function() {
+        assert.throws(function() {
+          rh._assertResponse(42);
+        }, TypeError, 'Expected response to be an object.');
       });
 
       it('throws if `response.statusCode` is not a number', function() {
@@ -218,6 +265,16 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
           }, TypeError, 'Unexpected `chunk` value when `stream` is present.');
         });
 
+        it('throws if `response.html` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              stream: { pipe: function() {} },
+              html: ''
+            }, true);
+          }, TypeError, 'Unexpected `html` value when `stream` is present.');
+        });
+
         it('throws if `response.json` is also passed', function() {
           assert.throws(function() {
             rh._assertResponse({
@@ -265,6 +322,16 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
           }, TypeError, 'Expected `chunk` to be a buffer.');
         });
 
+        it('throws if `response.html` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              chunk: new Buffer(''),
+              html: ''
+            }, true);
+          }, TypeError, 'Unexpected `html` value when `chunk` is present.');
+        });
+
         it('throws if `response.json` is also passed', function() {
           assert.throws(function() {
             rh._assertResponse({
@@ -284,14 +351,52 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
             }, true);
           }, TypeError, 'Unexpected `form` value when `chunk` is present.');
         });
+      });
 
-        it('throws if a response body is disallowed', function() {
+      describe('`response.html`', function() {
+        it('throws if the value exists but is not a string or array',
+          function() {
+            assert.throws(function() {
+              rh._assertResponse({ statusCode: 200, html: undefined }, true);
+            }, TypeError, 'Expected `html` to be a string or array.');
+
+            assert.doesNotThrow(function() {
+              rh._assertResponse({ statusCode: 200, html: '' }, true);
+            });
+
+            assert.doesNotThrow(function() {
+              rh._assertResponse({ statusCode: 200, html: [] }, true);
+            });
+          });
+
+        it('throws if `response.json` is also passed', function() {
           assert.throws(function() {
             rh._assertResponse({
               statusCode: 200,
-              chunk: new Buffer('')
-            }, false);
-          }, TypeError, 'Response contains `chunk` but no body is allowed.');
+              html: '',
+              json: true
+            }, true);
+          }, TypeError, 'Unexpected `json` value when `html` is present.');
+        });
+
+        it('throws if `response.form` is also passed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              html: '',
+              form: true
+            }, true);
+          }, TypeError, 'Unexpected `form` value when `html` is present.');
+        });
+
+        it('throws if only `response.chunk` is allowed', function() {
+          assert.throws(function() {
+            rh._assertResponse({
+              statusCode: 200,
+              html: ''
+            }, true, true);
+          }, TypeError,
+              'Response contains `html` but only `chunk` is allowed.');
         });
       });
 
@@ -310,15 +415,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
               form: true
             }, true);
           }, TypeError, 'Unexpected `form` value when `json` is present.');
-        });
-
-        it('throws if a response body is disallowed', function() {
-          assert.throws(function() {
-            rh._assertResponse({
-              statusCode: 200,
-              json: true
-            }, false);
-          }, TypeError, 'Response contains `json` but no body is allowed.');
         });
 
         it('throws if only `response.chunk` is allowed', function() {
@@ -345,15 +441,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
           }, TypeError, 'Expected `form` to be an object.');
         });
 
-        it('throws if a response body is disallowed', function() {
-          assert.throws(function() {
-            rh._assertResponse({
-              statusCode: 200,
-              form: {}
-            }, false);
-          }, TypeError, 'Response contains `form` but no body is allowed.');
-        });
-
         it('throws if only `response.chunk` is allowed', function() {
           assert.throws(function() {
             rh._assertResponse({
@@ -364,22 +451,6 @@ describe('http.app.RequestHandler#_assertResponse(response, allowBody, ' +
               'Response contains `form` but only `chunk` is allowed.');
         });
       });
-
-      describe('`statusCode` influences whether a response body is allowed',
-          function() {
-            [100, 150, 199, 204, 304].forEach(function(code) {
-              it('is not allowed when `statusCode` is `' + code + '`',
-                  function() {
-                    assert.throws(function() {
-                      rh._assertResponse({
-                        statusCode: code,
-                        chunk: new Buffer('')
-                      }, true);
-                    }, TypeError,
-                        'Response contains `chunk` but no body is allowed.');
-                  });
-            });
-          });
     });
 
 describe('http.app.RequestHandler._handle(req, res)', function() {
@@ -761,6 +832,7 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
       _events: {},
       setHeader: function() {},
       writeHead: function() {},
+      write: function() {},
       end: function() {},
       on: function() {},
       once: function() {},
@@ -772,25 +844,36 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
     };
   });
 
+  it('calls #_allowBody() with request and `promise` value', function() {
+    var stub = sinon.stub(rh, '_allowBody');
+    rh._writeResponse(Promise.from(sentinels.one), state);
+    return timed.delay().then(function() {
+      assert.calledOnce(stub);
+      assert.calledWithExactly(stub, state.request, sentinels.one);
+    });
+  });
+
   it('calls #_assertResponse() with `promise` value', function() {
     var stub = sinon.stub(rh, '_assertResponse');
     rh._writeResponse(Promise.from(sentinels.one), state);
     return timed.delay().then(function() {
       assert.calledOnce(stub);
-      assert.calledWithExactly(stub, sentinels.one, true, false);
+      assert.calledWithExactly(stub, sentinels.one, false, false);
     });
   });
 
-  it('calls #_assertResponse() with a falsy `allowBody` for HEAD requests',
-      function() {
-        var stub = sinon.stub(rh, '_assertResponse');
-        state.request.method = 'HEAD';
-        rh._writeResponse(Promise.from(sentinels.one), state);
-        return timed.delay().then(function() {
-          assert.calledOnce(stub);
-          assert.calledWithExactly(stub, sentinels.one, false, false);
-        });
-      });
+  it('sets a default content-type header for HTML response bodies', function() {
+    var mock = sinon.mock(state.underlyingRes);
+    mock.expects('setHeader').once().withExactArgs('content-type',
+        rh.DEFAULT_HTML_CONTENT_TYPE);
+    rh._writeResponse(Promise.from({
+      statusCode: 200,
+      html: ''
+    }), state);
+    return timed.delay().then(function() {
+      mock.verify();
+    });
+  });
 
   it('sets a default content-type header for JSON response bodies', function() {
     var mock = sinon.mock(state.underlyingRes);
@@ -829,6 +912,22 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
     });
   });
 
+  it('emits `responseBodyIgnored` if there is a response body that is not ' +
+    'allowed',
+    function() {
+      var spy = sinon.spy();
+      rh.on('responseBodyIgnored', spy);
+      var responseWithChunk = { statusCode: 204, chunk: new Buffer('foo') };
+      rh._writeResponse(Promise.from(responseWithChunk), state);
+      var responseWithHtml = { statusCode: 204, html: 'foo' };
+      rh._writeResponse(Promise.from(responseWithHtml), state);
+      return timed.delay().then(function() {
+        assert.calledTwice(spy);
+        assert.calledWithExactly(spy, responseWithChunk, state);
+        assert.calledWithExactly(spy, responseWithHtml, state);
+      });
+    });
+
   it('writes head with appropriate status code and headers', function() {
     var mock = sinon.mock(state.underlyingRes);
     var response = { statusCode: 200, headers: {} };
@@ -861,6 +960,40 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
           assert.isTrue(state.streaming);
         });
       });
+
+  it('ends with a buffer for a single HTML string', function() {
+    var spy = sinon.spy(state.underlyingRes, 'end');
+    rh._writeResponse(Promise.from({
+      statusCode: 200,
+      html: 'foo'
+    }), state);
+    return timed.delay().then(function() {
+      assert.calledOnce(spy);
+      assert.calledWithMatch(spy, sinon.match(function(value) {
+        return Buffer.isBuffer(value) &&
+            value.toString('utf8') === 'foo';
+      }));
+    });
+  });
+
+  it('writes HTML array, then ends', function() {
+    var writeSpy = sinon.spy(state.underlyingRes, 'write');
+    var endSpy = sinon.spy(state.underlyingRes, 'end');
+    rh._writeResponse(Promise.from({
+      statusCode: 200,
+      html: ['foo', new Buffer('bar')]
+    }), state);
+    return timed.delay().then(function() {
+      assert.calledTwice(writeSpy);
+      assert.calledOnce(endSpy);
+      assert.callOrder(writeSpy, endSpy);
+      assert.calledWithExactly(writeSpy, 'foo', 'utf8');
+      assert.calledWithMatch(writeSpy, sinon.match(function(value) {
+        return Buffer.isBuffer(value) &&
+            value.toString('utf8') === 'bar';
+      }));
+    });
+  });
 
   it('ends with a chunk body', function() {
     var spy = sinon.spy(state.underlyingRes, 'end');
@@ -899,6 +1032,18 @@ describe('http.app.RequestHandler#_writeResponse(promise, state)', function() {
         return Buffer.isBuffer(value) &&
             value.toString('utf8') === 'foo=b%C3%A5r';
       }));
+    });
+  });
+
+  it('simply ends if no response body is allowed', function() {
+    var spy = sinon.spy(state.underlyingRes, 'end');
+    rh._writeResponse(Promise.from({
+      statusCode: 204,
+      chunk: new Buffer('foo')
+    }), state);
+    return timed.delay().then(function() {
+      assert.calledOnce(spy);
+      assert.calledWithExactly(spy);
     });
   });
 
