@@ -37,7 +37,7 @@ describe('http.transports.RequestDescriptor(client, method, options)',
             .withExactArgs(sentinels.one);
         var auth = mock.expects('buildAuth')
             .once()
-            .withExactArgs(sentinels.auth);
+            .withExactArgs(sentinels.auth, sentinels.one);
 
         RequestDescriptor.call(mock.object, {
           pathname: sentinels.pathname,
@@ -394,13 +394,14 @@ describe('http.transports.RequestDescriptor#buildBody(options)', function() {
   });
 });
 
-describe('http.transports.RequestDescriptor#buildAuth(auth)', function() {
-  it('returns `auth` as-is', function() {
-    var rd = new RequestDescriptor({
-      pathname: '/',
-      headers: [],
-      query: []
-    }, sentinels.method, {});
-    assert.strictEqual(rd.buildAuth(sentinels.auth), sentinels.auth);
+describe('http.transports.RequestDescriptor#buildAuth(auth, options)',
+  function() {
+    it('returns `auth` as-is', function() {
+      var rd = new RequestDescriptor({
+        pathname: '/',
+        headers: [],
+        query: []
+      }, sentinels.method, {});
+      assert.strictEqual(rd.buildAuth(sentinels.auth), sentinels.auth);
+    });
   });
-});
