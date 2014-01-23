@@ -562,7 +562,7 @@ describe('streams.Readable#_produceLimited()', function() {
     return delay().then(function() {
       assert.notCalled(spy);
       return r2.read();
-    }).then(function() {
+    }).then(delay).then(function() {
       assert.calledThrice(spy);
       assert.calledWithExactly(spy, sentinels.one);
       assert.calledWithExactly(spy, sentinels.two);
